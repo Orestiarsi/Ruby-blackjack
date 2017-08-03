@@ -1,0 +1,37 @@
+printf ("testing on what this ...")
+
+build cards
+build deck
+build player
+build house
+build game
+play game.....
+
+Deck
+Card
+
+Game
+  run
+    get a new Deck
+    shuffle Deck
+    player.give_cards(two cards from deck)
+      while player. hit?
+        player.give_card(new card from deck)
+      if player.bust?
+        player.lose
+      else
+        dealer.give_cards(two cards)
+        while dealer.hit?
+          dealer.give_card(card)
+
+
+  player
+    hit?
+      return false if bust?
+      print_cards
+      ask player if they want to hit
+
+  dealer
+    hit?
+      return false if bust?
+      return true if card_value < 17

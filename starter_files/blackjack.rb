@@ -2,13 +2,16 @@ NUMBERCARDS = ["2","3","4","5","6","7","8","9","10"]
 FACECARDS = ["J", "K", "Q", "A"]
 
 class Card
-
-	attr_reader :card_number
-	def initialize(card_number)
+	attr_reader :card_number, :hermetic
+	def initialize(card_number, hermetic = false)
 		@card_number = card_number
+		@hermetic = hermetic
 	end
 
 	def to_s
+		if @hermetic
+			return "Card hermetic"
+		end
 		@card_number
 	end
 
@@ -21,24 +24,27 @@ class Card
 			return @card_number.to_i
 		end
 	end
+
+	def unhide
+		@hermetic = false
+	end
 end
 
-# ---------------------------------------------------
-
+# ------------------------------------------------------
 class Hand
 	attr_accessor :current_value, :cards, :bust, :bet, :has_ace, :value_without_ace, :number_of_aces
 	def initialize
 		@current_value = 0
 		@cards = Array.new
 		@bust = false
-		@bet = 0
+		@bet = 0.00
 		@has_ace = false
 		@value_without_ace = 0
 		@number_of_aces = 0
 	end
 
-	def hit(card_number, hidden = false)
-		@cards.push(Card.new(card_number, hidden))
+	def hit(card_number, hermetic = false)
+		@cards.push(Card.new(card_number, hermetic))
 		if !@value_without_ace or !@current_value or !@number_of_aces
 			@value_without_ace = 0
 			@current_value = 0
@@ -72,11 +78,11 @@ class Hand
 	end
 
 	def get_cards(player_number, hand)
-		printf("\n\n\t\t Player #{player_number}'s current cards for hand #{hand} are:  \n\n")
+		print "Player #{player_number}'s current cards for hand #{hand} are: "
 		@cards.each do |c|
-			printf("\n\n\t\t #{c.card_number}  \n\n")
+			print "#{c.card_number} "
 		end
-  printf("\n\n\t\t With a value of #{@current_value}  \n\n")
+		puts "With a value of #{@current_value}"
 	end
 
 	def was_split(card_number)
@@ -88,8 +94,8 @@ class Hand
 		hit(card_number)
 	end
 end
-# -------------------------------------------------------
 
+#---------------------------------------------------------
 class Player
 	attr_reader :player_number, :money, :cards, :bet, :hands, :initial_bet
 	def initialize(player_number)
@@ -106,11 +112,11 @@ class Player
 		@initial_bet = 0
 	end
 
-	def hit(card_number, hand = 0, hidden = false)
+	def hit(card_number, hand = 0, hermetic = false)
 		if !@hands[hand]
 			@hands[hand] = Hand.new
 		end
-		@hands[hand].hit(card_number, hidden)
+		@hands[hand].hit(card_number, hermetic)
 	end
 
 	def first_hit(card1_number, card2_number)
@@ -122,11 +128,11 @@ class Player
 		if @hands.length > 1
 			@hands[hand].get_cards(@player_number, hand)
 		else
-   printf("\n\n\t\t Player #{@player_number}'s current cards are:\n\n")
+			print "Player #{@player_number}'s current cards are: "
 			@hands[0].cards.each do |c|
-				printf("\n\n\t\t #{c} \n\n")
+				print "#{c} "
 			end
-			printf("\n\n\t\t With a value of #{@hands[0].current_value}  \n\n")
+			puts "With a value of #{@hands[0].current_value}"
 		end
 	end
 
@@ -158,9 +164,9 @@ class Player
 	def win(hand = 0)
 		@money += @hands[hand].bet * 2
 		if number_of_hands > 1
-			printf("\n\n\t\t Player #{@player_number} won on hand #{hand}!  \n\n")
+			puts "Player #{@player_number} won on hand #{hand}!"
 		else
-			printf("\n\n\t\t Player #{@player_number} won!  \n\n")
+			puts "Player #{@player_number} won!"
 		end
 	end
 
@@ -175,15 +181,15 @@ class Player
 	def push(hand = 0)
 		@money += @hands[hand].bet
 		if number_of_hands > 1
-			printf("\n\n\t\t Player #{@player_number} pushed on hand #{hand}!  \n\n")
+			puts "Player #{@player_number} pushed on hand #{hand}!"
 		else
-			printf("\n\n\t\t Player #{@player_number} pushed!  \n\n")
+			puts "Player #{@player_number} pushed!"
 		end
 	end
 
 	def win_blackjack
 		@money += @hands[0].bet*2.5
-		printf("\n\n\t\t Player #{@player_number} won!  \n\n")
+		puts "Player #{@player_number} won!"
 	end
 
 	def is_broke?
@@ -206,6 +212,26 @@ class Player
 		end
 	end
 
+	def can_split?(hand = 0)
+		if @hands[hand].cards.length == 2
+			if @hands[hand].cards[0].value == @hands[hand].cards[1].value and @money >= @initial_bet
+				return true
+			end
+		end
+		return false
+	end
+
+	def split(hand)
+		new_hand = Hand.new
+		new_hand.bet = @initial_bet
+		@money -= @initial_bet
+		new_hand.hit(@hands[hand].cards.pop.card_number)
+		@hands.push(new_hand)
+		new_hand2 = Hand.new
+		new_hand2.hit(@hands[hand].cards.pop.card_number)
+		@hands[hand] = new_hand2
+	end
+
 	def number_of_hands
 		return @hands.length
 	end
@@ -223,13 +249,10 @@ class Player
 	end
 
 	def has_money
-		printf("\n\n\t\t Player #{player_number}'s current money is now #{@money}  \n\n")
+		puts "Player #{player_number}'s current money is now #{@money}"
 	end
-
 end
-
-# ---------------------------------------------------
-
+#------------------------------------------------------
 class House < Player
 	attr_reader :current_value, :bust
 	def initialize()
@@ -237,8 +260,8 @@ class House < Player
 		@cards = Array.new
 		@current_value
 	end
-	def hit(card_number, hidden = false, hand = 0)
-		@cards.push(Card.new(card_number, hidden))
+	def hit(card_number, hermetic = false, hand = 0)
+		@cards.push(Card.new(card_number, hermetic))
 		if !@value_without_ace or !@current_value or !@number_of_aces
 			@value_without_ace = 0
 			@current_value = 0
@@ -275,15 +298,16 @@ class House < Player
 		hit(card2_number)
 	end
 	def get_cards
-		printf("\n\n\t\t House's current cards are:   \n\n")
+		puts "House's current cards are: "
 		@cards.each do |c|
-			printf("\n\n\t\t #{c} \n\n")
+			print "#{c} "
 		end
-		printf("\n\n\t\t With a value of #{@current_value}  \n\n")
+		puts
+		puts "With a value of #{@current_value}"
 	end
 	def unhide_card
 		@cards.each do |c|
-			if c.hidden
+			if c.hermetic
 				c.unhide
 				return
 			end
@@ -297,12 +321,9 @@ class House < Player
 		end
 	end
 end
-
-# -----------------------------------------------------
+#--------------------------------------------------------
 class Game
-
 	def initialize
-
 		@numplayers = 0
 		get_num_players
 		@players = Array.new
@@ -325,15 +346,16 @@ class Game
 			evaluate_game
 			play_or_quit
 		end
-		printf("\n\n\t\t Game over!  \n\n")
+		puts "Game over!"
 	end
+
 	def get_num_players
 		players_valid = false
 		while !players_valid do
-			printf("\n\n\t\t Input the number of players  \n\n")
+			puts "Input the number of players"
 			@numplayers = gets.to_i
 			if @numplayers <= 0
-				printf("\n\n\t\t Error! Please enter a number of players higher than 0  \n\n")
+				puts "Error! Please enter a number of players higher than 0"
 			else
 				players_valid = true
 				return
@@ -357,13 +379,13 @@ class Game
 
 	def bet(player, hand = 0)
 		while true
-			printf("\n\n\t\t Player #{player.player_number}, your current money is #{player.money}. Please enter a bet  \n\n")
+			puts "Player #{player.player_number}, your current money is #{player.money}. Please enter a bet"
 			bet = gets.to_f
 			if (player.place_bet(bet, hand))
-				printf("\n\n\t\t You bet #{player.hands[hand].bet}. Your current money is #{player.money}.  \n\n")
+				puts "You bet #{player.hands[hand].bet}. Your current money is #{player.money}."
 				break
 			end
-			printf("\n\n\t\t Enter a valid bet.  \n\n")
+			puts "Enter a valid bet."
 		end
 	end
 
@@ -381,11 +403,11 @@ class Game
 	end
 
 	def house_cards
-		printf("\n\n\t\t House has:  \n\n")
+		print "House has: "
 		@house.cards.each do |c|
-			printf("\n\n\t\t #{c}  \n\n")
+			print "#{c} "
 		end
-		printf("\n\n\t\t   \n\n")
+		puts""
 	end
 
 	def all_player_turns
@@ -398,14 +420,20 @@ class Game
 		if (hand >= player.number_of_hands)
 			return
 		end
-		printf("\n\n\t\t Player #{player.player_number}'s turn  \n\n")
+		puts "Player #{player.player_number}'s turn"
 		player.get_cards(hand)
 		if player.has_natural?
-			printf("\n\n\t\t Contratulations! you rubied  \n\n")
+			puts "Contratulations! Blackjack."
+			return
+		end
+		if split(player, hand)
+			return
+		end
+		if double_down(player, hand)
 			return
 		end
 		while true
-			printf("\n\n\t\t Enter hit to hit or stay to stay  \n\n")
+			puts "Enter hit to hit or stay to stay"
 			move = gets.chomp
 			if move == "hit"
 				if hit(player, hand)
@@ -414,11 +442,12 @@ class Game
 				if split(player, hand)
 					return
 				end
+
 				if double_down(player, hand)
 					return
 				end
 			elsif move == "stay"
-				printf("\n\n\t\t You stayed at score #{player.current_value(hand)}  \n\n")
+				puts "You stayed at score #{player.current_value(hand)}"
 				break
 			end
 		end
@@ -427,9 +456,9 @@ class Game
 
 	def hit(player, hand)
 		card = @deck.pop
-		printf("\n\n\t\t You got #{card}!  \n\n")
+		puts "You got #{card}!"
 		player.hit(card, hand)
-		printf("\n\n\t\t Your new score is #{player.current_value(hand)}  \n\n")
+		puts "Your new score is #{player.current_value(hand)}"
 		if player.has_21?(hand)
 			return true
 		end
@@ -437,26 +466,59 @@ class Game
 			add_cards
 		end
 		if player.bust(hand)
-			printf("\n\n\t\t Bust!  \n\n")
+			puts "Bust!"
 			return true
 		end
 		return false
+	end
+
+	def split(player, hand)
+		if player.can_split?(hand)
+			puts "Type split to split or anything else to continue"
+			split = gets.chomp
+			if split == "split"
+				player.split(hand)
+				player_turn(player, hand)
+				return true
+			end
+		end
+	end
+
+	def double_down(player, hand)
+		if player.cards_in_hand(hand) != 2
+			return
+		end
+		puts "Type yes to double down or anything else to continue."
+		choice = gets.chomp
+		if choice == "yes"
+			while true
+				puts "How much more do you want to bet? Maximum of #{[player.initial_bet, player.money].min}."
+				second_bet = gets.to_f
+				if second_bet <= player.initial_bet and second_bet >= 0 and second_bet <= player.money
+					player.place_bet(second_bet, hand)
+					hit(player, hand)
+					player_turn(player, hand + 1)
+					return true
+				end
+				puts "Please enter a valid bet!"
+			end
+		end
 	end
 
 	def house_turn
 		@house.unhide_card
 		@house.get_cards
 		if @house.has_natural?
-			printf("\n\n\t\t House has blackjack!  \n\n")
+			puts "House has blackjack!"
 			return
 		end
 		while @house.current_value < 17
 			card = @deck.pop
-			printf("\n\n\t\t House hit and got #{card}!  \n\n")
+			puts "House hit and got #{card}!"
 			@house.hit(card)
 			@house.get_cards
 			if @house.bust
-				printf("\n\n\t\t Bust!  \n\n")
+				puts "Bust!"
 			end
 		end
 	end
@@ -510,10 +572,10 @@ class Game
 	def play_or_quit
 		quitters = Array.new
 		@players.each do |p|
-			printf("\n\n\t\t Player #{p.player_number}, type any key to keep playing or quit to quit  \n\n")
+			puts "Player #{p.player_number}, type any key to keep playing or quit to quit"
 			option = gets.chomp
 			if option == "quit"
-				printf("\n\n\t\t GoodBye  \n\n")
+				puts "Bye!"
 				quitters.push(p)
 			else
 				p.reset
@@ -521,7 +583,5 @@ class Game
 		end
 		@players -= quitters
 	end
-
 end
-
 game = Game.new
